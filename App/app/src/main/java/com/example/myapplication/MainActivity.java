@@ -1,17 +1,22 @@
 package com.example.myapplication;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.icu.text.DateFormat;
 import android.icu.text.SimpleDateFormat;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -22,6 +27,7 @@ import android.widget.Toast;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -42,8 +48,8 @@ public class MainActivity extends AppCompatActivity {
     boolean timerStarted;
     private int progress = 0;
     private CountDownTimer mCountDownTimer;
-    private static final long start_time = 30000;
-    //private static final long start_time = 3000;
+    //private static final long start_time = 30000;
+    private static final long start_time = 3000;
     private long time_left = start_time;
 
     //variables for creating name of the saved file as current date and time
@@ -52,6 +58,8 @@ public class MainActivity extends AppCompatActivity {
     DateFormat df = new SimpleDateFormat(pattern);
     String currentTimeSt = df.format(currentTime);
     String currentTimeString = currentTimeSt.replaceAll("\\s+", "");
+
+    private static final int CREATE_FILE = 1;
 
     //lists for collecting each of the axis of the accelerometer
     List<Float> x_list = new ArrayList<Float>();
@@ -175,70 +183,51 @@ public class MainActivity extends AppCompatActivity {
 
     public void saveMeasurements(View v) {
         //Method to save lists with measurements
-        String x_text = x_list.toString();
-        String y_text = y_list.toString();
-        String z_text = z_list.toString();
 
-        FileOutputStream fos_x = null;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, currentTimeString + ".txt");
 
-        try {
-            fos_x = openFileOutput("x_list-" + currentTimeString, MODE_PRIVATE);
-            fos_x.write(x_text.getBytes());
-            Toast.makeText(this, "File saved to: " + getFilesDir() + "/ " + "x_list-" +currentTimeString, Toast.LENGTH_LONG).show();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (fos_x != null){
-                try {
-                    fos_x.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
 
-        FileOutputStream fos_y = null;
-        try {
-            fos_y = openFileOutput("y_list-" + currentTimeString, MODE_PRIVATE);
-            fos_y.write(y_text.getBytes());
-            Toast.makeText(this, "File saved to: " + getFilesDir() + "/ " + "y_list-" +currentTimeString, Toast.LENGTH_LONG).show();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (fos_y != null){
-                try {
-                    fos_y.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+        startActivityForResult(intent, CREATE_FILE);
 
-        FileOutputStream fos_z = null;
-        try {
-            fos_z = openFileOutput("z_list-" + currentTimeString, MODE_PRIVATE);
-            fos_z.write(z_text.getBytes());
-            Toast.makeText(this, "File saved to: " + getFilesDir() + "/ " + "z_list-" +currentTimeString, Toast.LENGTH_LONG).show();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (fos_z != null){
-                try {
-                    fos_z.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
         button_save.setVisibility(View.INVISIBLE);
 
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
+        String x_text = x_list.toString();
+        String y_text = y_list.toString();
+        String z_text = z_list.toString();
+        String allLists = x_text + " next" + y_text + "next" + z_text;
+
+        if (requestCode == 1){
+            if (resultCode == RESULT_OK) {
+                Uri uri = data.getData();
+
+                OutputStream outputStream = null;
+                try {
+                    outputStream = getContentResolver().openOutputStream(uri);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                try {
+                    outputStream.write(allLists.getBytes());
+                    outputStream.close();
+                    Toast.makeText(this, "File saved successfully", Toast.LENGTH_SHORT).show();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    Toast.makeText(this, "Failed to write or close file", Toast.LENGTH_SHORT).show();
+                }
+
+            } else {
+                Toast.makeText(this, "File not saved", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 }
